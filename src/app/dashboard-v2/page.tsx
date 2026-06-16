@@ -67,13 +67,18 @@ export default function DashboardV2() {
 
         // Build query params for filter
         let summaryUrl = '/api/dashboard/summary'
-        if (filterType && filterValue) {
-          summaryUrl += `?filterType=${filterType}&filterValue=${encodeURIComponent(filterValue)}`
+        let assetsByTypeUrl = '/api/dashboard/assets-by-type'
+
+        if (filterType === 'status' && filterValue) {
+          summaryUrl += `?filterType=status&filterValue=${encodeURIComponent(filterValue)}`
+          assetsByTypeUrl += `?status=${encodeURIComponent(filterValue)}`
+        } else if (filterType === 'type' && filterValue) {
+          summaryUrl += `?filterType=type&filterValue=${encodeURIComponent(filterValue)}`
         }
 
         const [summaryRes, typesRes] = await Promise.all([
           fetch(summaryUrl),
-          fetch('/api/dashboard/assets-by-type'),
+          fetch(assetsByTypeUrl),
         ])
 
         const summaryData = await summaryRes.json()
@@ -131,89 +136,6 @@ export default function DashboardV2() {
           </div>
         ) : (
           <div className="space-y-8">
-            {/* Filter Section */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
-                Filter Statistics
-              </h2>
-              <div className="flex gap-4 flex-wrap items-end">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-2">
-                    Filter By
-                  </label>
-                  <select
-                    value={filterType || ''}
-                    onChange={(e) => {
-                      setFilterType((e.target.value as 'status' | 'type') || null)
-                      setFilterValue('')
-                    }}
-                    className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
-                  >
-                    <option value="">No Filter</option>
-                    <option value="status">Asset Status</option>
-                    <option value="type">Asset Type</option>
-                  </select>
-                </div>
-
-                {filterType === 'status' && (
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-2">
-                      Select Status
-                    </label>
-                    <select
-                      value={filterValue}
-                      onChange={(e) => setFilterValue(e.target.value)}
-                      className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
-                    >
-                      <option value="">-- Select Status --</option>
-                      <option value="Available">Available</option>
-                      <option value="Assigned">Assigned</option>
-                      <option value="Repair">In Repair</option>
-                      <option value="Retired">Retired</option>
-                      <option value="Disposed">Disposed</option>
-                    </select>
-                  </div>
-                )}
-
-                {filterType === 'type' && (
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-2">
-                      Select Type
-                    </label>
-                    <select
-                      value={filterValue}
-                      onChange={(e) => setFilterValue(e.target.value)}
-                      className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
-                    >
-                      <option value="">-- Select Type --</option>
-                      {assetTypes.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {filterType && filterValue && (
-                  <button
-                    onClick={() => {
-                      setFilterType(null)
-                      setFilterValue('')
-                    }}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
-                  >
-                    Clear Filter
-                  </button>
-                )}
-              </div>
-              {filterType && filterValue && (
-                <p className="text-xs text-gray-600 mt-3">
-                  Showing stats for: <strong>{filterType === 'status' ? `Status: ${filterValue}` : `Type: ${filterValue}`}</strong>
-                </p>
-              )}
-            </div>
-
             {/* Device Type Grid - Like the screenshot */}
             <div>
               <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
@@ -319,9 +241,33 @@ export default function DashboardV2() {
             {/* Assets by Type - Card Grid */}
             {assetsByType.length > 0 && (
               <div>
-                <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
-                  Asset Inventory by Type
-                </h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+                    Asset Inventory by Type
+                  </h2>
+                  <div className="flex gap-3 items-center">
+                    <select
+                      value={filterType === 'status' ? filterValue : ''}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setFilterType('status')
+                          setFilterValue(e.target.value)
+                        } else {
+                          setFilterType(null)
+                          setFilterValue('')
+                        }
+                      }}
+                      className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+                    >
+                      <option value="">All Statuses</option>
+                      <option value="Available">Available</option>
+                      <option value="Assigned">Assigned</option>
+                      <option value="Repair">In Repair</option>
+                      <option value="Retired">Retired</option>
+                      <option value="Disposed">Disposed</option>
+                    </select>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-10 gap-2">
                   {assetsByType.map((item) => (
                     <div

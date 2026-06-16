@@ -1,9 +1,12 @@
 import 'dotenv/config'
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import prisma from '@/lib/db'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const searchParams = request.nextUrl.searchParams
+    const statusFilter = searchParams.get('status')
+
     // Get asset types with counts
     const assetTypes = await prisma.assetType.findMany({
       where: { isActive: true },
@@ -13,8 +16,13 @@ export async function GET() {
     // For each type, count total, available, and assigned assets
     const result = await Promise.all(
       assetTypes.map(async (type) => {
+        const baseWhere = { type: { name: type.name } }
+        const whereClause = statusFilter
+          ? { ...baseWhere, status: statusFilter }
+          : baseWhere
+
         const [total, available, assigned] = await Promise.all([
-          prisma.asset.count({ where: { type: { name: type.name } } }),
+          prisma.asset.count({ where: statusFilter ? whereClause : baseWhere }),
           prisma.asset.count({ where: { type: { name: type.name }, status: 'Available' } }),
           prisma.asset.count({ where: { type: { name: type.name }, status: 'Assigned' } }),
         ])
