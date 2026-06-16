@@ -39,6 +39,9 @@ export default function DashboardV2() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [assetsByType, setAssetsByType] = useState<AssetsByType[]>([])
   const [loading, setLoading] = useState(true)
+  const [filterType, setFilterType] = useState<'status' | 'type' | null>(null)
+  const [filterValue, setFilterValue] = useState('')
+  const [assetTypes, setAssetTypes] = useState<string[]>([])
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -57,8 +60,19 @@ export default function DashboardV2() {
           return
         }
 
+        // Load asset types for filter dropdown
+        const assetTypesRes = await fetch('/api/asset-types')
+        const { types = [] } = await assetTypesRes.json()
+        setAssetTypes(types.map((t: any) => t.name))
+
+        // Build query params for filter
+        let summaryUrl = '/api/dashboard/summary'
+        if (filterType && filterValue) {
+          summaryUrl += `?filterType=${filterType}&filterValue=${encodeURIComponent(filterValue)}`
+        }
+
         const [summaryRes, typesRes] = await Promise.all([
-          fetch('/api/dashboard/summary'),
+          fetch(summaryUrl),
           fetch('/api/dashboard/assets-by-type'),
         ])
 
@@ -75,7 +89,7 @@ export default function DashboardV2() {
     }
 
     loadDashboard()
-  }, [router])
+  }, [router, filterType, filterValue])
 
   if (!user) return null
 
@@ -117,6 +131,89 @@ export default function DashboardV2() {
           </div>
         ) : (
           <div className="space-y-8">
+            {/* Filter Section */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
+                Filter Statistics
+              </h2>
+              <div className="flex gap-4 flex-wrap items-end">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-2">
+                    Filter By
+                  </label>
+                  <select
+                    value={filterType || ''}
+                    onChange={(e) => {
+                      setFilterType((e.target.value as 'status' | 'type') || null)
+                      setFilterValue('')
+                    }}
+                    className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+                  >
+                    <option value="">No Filter</option>
+                    <option value="status">Asset Status</option>
+                    <option value="type">Asset Type</option>
+                  </select>
+                </div>
+
+                {filterType === 'status' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-2">
+                      Select Status
+                    </label>
+                    <select
+                      value={filterValue}
+                      onChange={(e) => setFilterValue(e.target.value)}
+                      className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+                    >
+                      <option value="">-- Select Status --</option>
+                      <option value="Available">Available</option>
+                      <option value="Assigned">Assigned</option>
+                      <option value="Repair">In Repair</option>
+                      <option value="Retired">Retired</option>
+                      <option value="Disposed">Disposed</option>
+                    </select>
+                  </div>
+                )}
+
+                {filterType === 'type' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-2">
+                      Select Type
+                    </label>
+                    <select
+                      value={filterValue}
+                      onChange={(e) => setFilterValue(e.target.value)}
+                      className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+                    >
+                      <option value="">-- Select Type --</option>
+                      {assetTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {filterType && filterValue && (
+                  <button
+                    onClick={() => {
+                      setFilterType(null)
+                      setFilterValue('')
+                    }}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
+                  >
+                    Clear Filter
+                  </button>
+                )}
+              </div>
+              {filterType && filterValue && (
+                <p className="text-xs text-gray-600 mt-3">
+                  Showing stats for: <strong>{filterType === 'status' ? `Status: ${filterValue}` : `Type: ${filterValue}`}</strong>
+                </p>
+              )}
+            </div>
+
             {/* Device Type Grid - Like the screenshot */}
             <div>
               <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">

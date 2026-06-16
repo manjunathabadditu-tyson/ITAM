@@ -1,17 +1,29 @@
 import 'dotenv/config'
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import prisma from '@/lib/db'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const searchParams = request.nextUrl.searchParams
+    const filterType = searchParams.get('filterType') // 'status' or 'type'
+    const filterValue = searchParams.get('filterValue') // e.g., 'Available' or 'Laptop'
+
+    // Build filter condition
+    let assetFilter: any = {}
+    if (filterType === 'status' && filterValue) {
+      assetFilter.status = filterValue
+    } else if (filterType === 'type' && filterValue) {
+      assetFilter.type = { name: filterValue }
+    }
+
     // Get asset counts by status
     const [total, available, assigned, repair, retired, disposed] = await Promise.all([
-      prisma.asset.count(),
-      prisma.asset.count({ where: { status: 'Available' } }),
-      prisma.asset.count({ where: { status: 'Assigned' } }),
-      prisma.asset.count({ where: { status: 'Repair' } }),
-      prisma.asset.count({ where: { status: 'Retired' } }),
-      prisma.asset.count({ where: { status: 'Disposed' } }),
+      prisma.asset.count({ where: assetFilter }),
+      prisma.asset.count({ where: { ...assetFilter, status: 'Available' } }),
+      prisma.asset.count({ where: { ...assetFilter, status: 'Assigned' } }),
+      prisma.asset.count({ where: { ...assetFilter, status: 'Repair' } }),
+      prisma.asset.count({ where: { ...assetFilter, status: 'Retired' } }),
+      prisma.asset.count({ where: { ...assetFilter, status: 'Disposed' } }),
     ])
 
     // Get warranty alerts (assets expiring within 30 days)
@@ -27,10 +39,18 @@ export async function GET() {
       },
     })
 
-    // Get recent movements with assignee info
+    // Get recent movements with assignee info (filtered if applicable)
+    let movementFilter: any = {}
+    if (filterType === 'status' && filterValue) {
+      movementFilter.asset = { status: filterValue }
+    } else if (filterType === 'type' && filterValue) {
+      movementFilter.asset = { type: { name: filterValue } }
+    }
+
     const recentMovements = await prisma.assetMovement.findMany({
       take: 15,
       orderBy: { performedAt: 'desc' },
+      where: movementFilter,
       include: {
         asset: { select: { assetTag: true, type: { select: { name: true } } } },
         toUser: { select: { name: true, email: true } },
