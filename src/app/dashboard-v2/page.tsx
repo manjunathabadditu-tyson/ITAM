@@ -39,9 +39,7 @@ export default function DashboardV2() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [assetsByType, setAssetsByType] = useState<AssetsByType[]>([])
   const [loading, setLoading] = useState(true)
-  const [filterType, setFilterType] = useState<'status' | 'type' | null>(null)
   const [filterValue, setFilterValue] = useState('')
-  const [assetTypes, setAssetTypes] = useState<string[]>([])
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -60,20 +58,13 @@ export default function DashboardV2() {
           return
         }
 
-        // Load asset types for filter dropdown
-        const assetTypesRes = await fetch('/api/asset-types')
-        const { types = [] } = await assetTypesRes.json()
-        setAssetTypes(types.map((t: any) => t.name))
-
         // Build query params for filter
         let summaryUrl = '/api/dashboard/summary'
         let assetsByTypeUrl = '/api/dashboard/assets-by-type'
 
-        if (filterType === 'status' && filterValue) {
+        if (filterValue) {
           summaryUrl += `?filterType=status&filterValue=${encodeURIComponent(filterValue)}`
           assetsByTypeUrl += `?status=${encodeURIComponent(filterValue)}`
-        } else if (filterType === 'type' && filterValue) {
-          summaryUrl += `?filterType=type&filterValue=${encodeURIComponent(filterValue)}`
         }
 
         const [summaryRes, typesRes] = await Promise.all([
@@ -94,7 +85,7 @@ export default function DashboardV2() {
     }
 
     loadDashboard()
-  }, [router, filterType, filterValue])
+  }, [router, filterValue])
 
   if (!user) return null
 
@@ -239,35 +230,27 @@ export default function DashboardV2() {
             )}
 
             {/* Assets by Type - Card Grid */}
-            {assetsByType.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
-                    Asset Inventory by Type
-                  </h2>
-                  <div className="flex gap-3 items-center">
-                    <select
-                      value={filterType === 'status' ? filterValue : ''}
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          setFilterType('status')
-                          setFilterValue(e.target.value)
-                        } else {
-                          setFilterType(null)
-                          setFilterValue('')
-                        }
-                      }}
-                      className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
-                    >
-                      <option value="">All Statuses</option>
-                      <option value="Available">Available</option>
-                      <option value="Assigned">Assigned</option>
-                      <option value="Repair">In Repair</option>
-                      <option value="Retired">Retired</option>
-                      <option value="Disposed">Disposed</option>
-                    </select>
-                  </div>
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+                  Asset Inventory by Type
+                </h2>
+                <div className="flex gap-3 items-center">
+                  <select
+                    value={filterValue}
+                    onChange={(e) => setFilterValue(e.target.value)}
+                    className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="Available">Available</option>
+                    <option value="Assigned">Assigned</option>
+                    <option value="Repair">In Repair</option>
+                    <option value="Retired">Retired</option>
+                    <option value="Disposed">Disposed</option>
+                  </select>
                 </div>
+              </div>
+              {assetsByType.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-10 gap-2">
                   {assetsByType.map((item) => (
                     <div
@@ -310,22 +293,29 @@ export default function DashboardV2() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-gray-600 font-medium">No assets found</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {filterValue ? `No assets with status "${filterValue}"` : 'No assets available'}
+                  </p>
+                </div>
+              )}
+            </div>
 
             {/* Recent Movements Table */}
-            {summary.recentMovements.length > 0 && (
-              <div>
-                <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
-                  Recent Activity
-                </h2>
-                <div
-                  className="rounded-lg overflow-hidden"
-                  style={{
-                    background: '#FFFFFF',
-                    border: '1px solid #E5DCD0',
-                  }}
-                >
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
+                Recent Activity
+              </h2>
+              <div
+                className="rounded-lg overflow-hidden"
+                style={{
+                  background: '#FFFFFF',
+                  border: '1px solid #E5DCD0',
+                }}
+              >
+                {summary.recentMovements.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead style={{ background: '#F3EDE0', borderBottom: '2px solid #E5DCD0' }}>
@@ -378,9 +368,16 @@ export default function DashboardV2() {
                       </tbody>
                     </table>
                   </div>
-                </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-600 font-medium">No recent activity</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {filterValue ? `No activities for status "${filterValue}"` : 'Activity will appear here'}
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         )}
       </ContentContainer>
