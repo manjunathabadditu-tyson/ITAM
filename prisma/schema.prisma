@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AppUser {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String
+  passwordHash    String?
+  authType        String    @default("Local") // "SSO", "Local"
+  entraObjectId   String?   // For Azure Entra SSO
+  isActive        Boolean   @default(true)
+  expiryDate      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now())
+
+  managerId       String?
+  manager         AppUser?  @relation("ManagerOf", fields: [managerId], references: [id])
+  directReports   AppUser[] @relation("ManagerOf")
+
+  departmentId    String?
+  department      Department? @relation(fields: [departmentId], references: [id])
+
+  userRoles         UserRole[]
+  currentAssets     Asset[]   @relation("currentHolder")
+  createdMovements  AssetMovement[] @relation("performedBy")
+  assetMovementsFrom AssetMovement[] @relation("assetMovementsFrom")
+  assetMovementsTo  AssetMovement[] @relation("assetMovementsTo")
+  createdRequests   AssetRequest[] @relation("requestedBy")
+  forRequests       AssetRequest[] @relation("forUser")
+  approvedRequests  AssetRequest[] @relation("ApprovedBy")
+  rejectedRequests  AssetRequest[] @relation("RejectedBy")
+  createdInvoices   Invoice[] @relation("createdBy")
+
+  @@map("users")
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  userRoles UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  user      AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  users     AppUser[]
+
+  @@map("departments")
+}
+
+model AssetType {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String   @unique
+  description String?
+  icon      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  assetNames AssetName[]
+  assets     Asset[]
+
+  @@map("asset_types")
+}
+
+model AssetName {
+  id                    String   @id @default(cuid())
+  name                  String
+  manufacturer          String?
+  assetTypeId           String
+  assetType            AssetType @relation(fields: [assetTypeId], references: [id])
+  defaultSpecs          String?
+  defaultWarrantyMonths Int?
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+
+  assets       Asset[]
+  invoiceLines InvoiceLine[]
+
+  @@unique([assetTypeId, name])
+  @@map("asset_names")
+}
+
+model Vendor {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String?
+  contactInfo String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  invoices Invoice[]
+
+  @@map("vendors")
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String?
+  site      String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  assets      Asset[]
+  invoiceLines InvoiceLine[]
+
+  @@map("locations")
+}
+
+model Asset {
+  id              String    @id @default(cuid())
+  assetTag        String    @unique
+  assetNameId     String?
+  assetName       AssetName? @relation(fields: [assetNameId], references: [id])
+  typeId          String
+  type            AssetType @relation(fields: [typeId], references: [id])
+  modelName       String?
+  serialNum       String
+  status          String    // "Available", "Assigned", "Repair", "Retired", "Disposed"
+  condition       String?   // "Good", "Fair", "Poor", "Unknown"
+  currentHolder   String?
+  currentHolderUser AppUser? @relation("currentHolder", fields: [currentHolder], references: [id])
+  locationId      String?
+  location        Location? @relation(fields: [locationId], references: [id])
+  purchaseCost    Float?
+  warrantyStart   DateTime?
+  warrantyEnd     DateTime?
+  invoiceLineId   String?
+  invoiceLine     InvoiceLine? @relation(fields: [invoiceLineId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now())
+
+  movements       AssetMovement[]
+
+  @@index([status])
+  @@index([currentHolder])
+  @@index([typeId])
+  @@index([assetNameId])
+  @@map("assets")
+}
+
+model AssetMovement {
+  id          String   @id @default(cuid())
+  assetId     String
+  asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  action      String   // "StockIn", "Allocate", "Deallocate", "Transfer", "Repair", "RepairComplete", "Retire", "Dispose"
+  fromStatus  String?
+  toStatus    String
+  fromUserId  String?
+  fromUser    AppUser? @relation("assetMovementsFrom", fields: [fromUserId], references: [id])
+  toUserId    String?
+  toUser      AppUser? @relation("assetMovementsTo", fields: [toUserId], references: [id])
+  performedBy String
+  performedByUser AppUser @relation("performedBy", fields: [performedBy], references: [id])
+  performedAt DateTime @default(now())
+  reason      String?
+  notes       String?
+  refTicket   String?
+
+  @@map("asset_movements")
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceNum    String   @unique
+  invoiceDate   DateTime @default(now())
+  vendorId      String?
+  vendor        Vendor?  @relation(fields: [vendorId], references: [id])
+  poNumber      String?
+  totalAmount   Float
+  currency      String   @default("USD")
+  attachmentUrl String?
+  notes         String?
+  createdBy     String?
+  createdByUser AppUser? @relation("createdBy", fields: [createdBy], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
+
+  lineItems     InvoiceLine[]
+
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id                String   @id @default(cuid())
+  invoiceId         String
+  invoice           Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  assetNameId       String?
+  assetName         AssetName? @relation(fields: [assetNameId], references: [id])
+  quantity          Int
+  unitPrice         Float
+  warrantyMonths    Int?
+  locationId        String?
+  location          Location? @relation(fields: [locationId], references: [id])
+  createdAt         DateTime @default(now())
+
+  assets  Asset[]
+
+  @@map("invoice_lines")
+}
+
+model AssetRequest {
+  id          String   @id @default(cuid())
+  requestType String   // "Allocate", "Return", "Issue", "New"
+  status      String   @default("Open") // "Open", "Approved", "Rejected", "Fulfilled"
+  requestedBy String
+  requestedByUser AppUser @relation("requestedBy", fields: [requestedBy], references: [id])
+  forUserId   String?
+  forUser     AppUser? @relation("forUser", fields: [forUserId], references: [id])
+  assetId     String?
+  notes       String?
+  approvedBy  String?
+  approver    AppUser? @relation("ApprovedBy", fields: [approvedBy], references: [id])
+  approvalDate DateTime?
+  approvalNotes String?
+  rejectedBy  String?
+  rejector    AppUser? @relation("RejectedBy", fields: [rejectedBy], references: [id])
+  rejectionDate DateTime?
+  rejectionReason String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+
+  @@map("asset_requests")
+}
