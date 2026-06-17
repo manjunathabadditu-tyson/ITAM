@@ -4,28 +4,37 @@ import { getAuthUser } from '@/lib/auth-server'
 import { hasRole, ROLE_CODES } from '@/lib/auth'
 import prisma from '@/lib/db'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const users = await prisma.appUser.findMany({
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        isActive: true,
-        department: { select: { name: true } },
-        userRoles: {
-          select: {
-            role: {
-              select: { code: true },
+    const { searchParams } = new URL(request.url)
+    const limit = parseInt(searchParams.get('limit') || '10', 10)
+    const offset = parseInt(searchParams.get('offset') || '0', 10)
+
+    const [users, total] = await Promise.all([
+      prisma.appUser.findMany({
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          isActive: true,
+          department: { select: { name: true } },
+          userRoles: {
+            select: {
+              role: {
+                select: { code: true },
+              },
             },
           },
+          _count: {
+            select: { currentAssets: true },
+          },
         },
-        _count: {
-          select: { currentAssets: true },
-        },
-      },
-      orderBy: { name: 'asc' },
-    })
+        orderBy: { name: 'asc' },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.appUser.count(),
+    ])
 
     const formattedUsers = users.map(u => ({
       id: u.id,
@@ -37,7 +46,7 @@ export async function GET() {
       _count: { devices: u._count.currentAssets },
     }))
 
-    return NextResponse.json({ users: formattedUsers })
+    return NextResponse.json({ users: formattedUsers, total, limit, offset })
   } catch (error) {
     console.error('Failed to fetch users:', error)
     return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
@@ -120,18 +129,67 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { userId, isActive } = await request.json()
+    const { userId, isActive, name, email, roleCode } = await request.json()
 
-    if (!userId || isActive === undefined) {
+    if (!userId) {
       return NextResponse.json(
-        { error: 'userId and isActive are required' },
+        { error: 'userId is required' },
         { status: 400 }
       )
     }
 
+    const updateData: any = {}
+
+    if (isActive !== undefined) {
+      updateData.isActive = isActive
+    }
+
+    if (name !== undefined) {
+      updateData.name = name
+    }
+
+    if (email !== undefined) {
+      updateData.email = email
+    }
+
     const updated = await prisma.appUser.update({
       where: { id: userId },
-      data: { isActive },
+      data: updateData,
+      include: {
+        userRoles: {
+          select: {
+            role: { select: { code: true, id: true } },
+          },
+        },
+        department: { select: { name: true } },
+      },
+    })
+
+    // Handle role update if provided
+    if (roleCode) {
+      const role = await prisma.role.findUnique({
+        where: { code: roleCode },
+      })
+
+      if (!role) {
+        return NextResponse.json({ error: 'Invalid role code' }, { status: 400 })
+      }
+
+      await prisma.userRole.deleteMany({
+        where: { userId: userId },
+      })
+
+      await prisma.userRole.create({
+        data: {
+          userId: userId,
+          roleId: role.id,
+        },
+      })
+    }
+
+    // Fetch updated user with new role
+    const finalUser = await prisma.appUser.findUnique({
+      where: { id: userId },
       include: {
         userRoles: {
           select: {
@@ -144,17 +202,20 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(
       {
-        id: updated.id,
-        email: updated.email,
-        name: updated.name,
-        department: updated.department?.name,
-        role: updated.userRoles[0]?.role.code,
-        isActive: updated.isActive,
+        id: finalUser!.id,
+        email: finalUser!.email,
+        name: finalUser!.name,
+        department: finalUser!.department?.name,
+        role: finalUser!.userRoles[0]?.role.code,
+        isActive: finalUser!.isActive,
       },
       { status: 200 }
     )
   } catch (error: any) {
     console.error('Failed to update user:', error)
+    if (error.code === 'P2002') {
+      return NextResponse.json({ error: 'Email already exists' }, { status: 400 })
+    }
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
   }
 }

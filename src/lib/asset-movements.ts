@@ -57,6 +57,7 @@ export async function performAssetMovement(
     data: {
       status: mapping.toStatus,
       ...(toUserId && { currentHolder: toUserId }),
+      ...(action === 'Deallocate' && { currentHolder: null }),
       ...(locationId && { locationId }),
       updatedAt: new Date(),
     },

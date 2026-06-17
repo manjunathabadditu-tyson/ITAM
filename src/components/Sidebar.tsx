@@ -51,6 +51,7 @@ export default function Sidebar({ user, isCollapsed, onToggleCollapse }: Sidebar
       title: 'Admin',
       items: [
         { href: '/inventory', label: 'All Assets', icon: '📦', roles: [ROLE_CODES.ADMIN] },
+        { href: '/admin/assets', label: 'Manage Assets', icon: '⚙️', roles: [ROLE_CODES.ADMIN] },
         { href: '/admin/users', label: 'Users', icon: '👥', roles: [ROLE_CODES.ADMIN] },
         { href: '/admin/requests', label: 'Requests', icon: '✅', roles: [ROLE_CODES.ADMIN] },
         { href: '/purchase', label: 'Invoices', icon: '🧾', roles: [ROLE_CODES.ADMIN] },
@@ -135,15 +136,14 @@ export default function Sidebar({ user, isCollapsed, onToggleCollapse }: Sidebar
         ) : (
           <div className="flex items-center justify-between px-4 py-4 border-b border-[#e5dcd0]">
             <div className="flex items-center gap-3">
-              {/* <div className="w-12 h-12 rounded-2xl bg-white border border-[#e5dcd0] flex items-center justify-center overflow-hidden"> */}
                 <Image
                   src={tysonLogo}
                   alt="Tyson Foods"
                   width={90}
-                  height={90}
+                  height={40}
                   className="object-contain"
+                  style={{ width: 'auto', height: 'auto' }}
                 />
-              {/* </div> */}
               <div>
                 <p className="text-sm font-semibold text-slate-900">ITAM</p>
                 <p className="text-xs text-slate-500">Asset Management</p>

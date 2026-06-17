@@ -9,7 +9,10 @@ export async function GET() {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const assets = await prisma.asset.findMany({
-      where: { currentHolder: user.id },
+      where: {
+        currentHolder: user.id,
+        status: 'Assigned',
+      },
       include: {
         type: { select: { name: true } },
         assetName: { select: { name: true, manufacturer: true } },
