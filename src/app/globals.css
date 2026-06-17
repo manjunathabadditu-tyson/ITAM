@@ -124,6 +124,10 @@ a:hover {
   text-decoration: none;
 }
 
+button {
+  padding: 0.5rem 1rem !important;
+}
+
 .btn-primary {
   background: var(--gradient);
   color: var(--white);
@@ -490,13 +494,14 @@ html, body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
   z-index: 50;
   animation: fadeIn 0.2s ease-out;
+  backdrop-filter: blur(1px);
 }
 
 .modal-content {

@@ -51,12 +51,12 @@ export default function Sidebar({ user, isCollapsed, onToggleCollapse }: Sidebar
       title: 'Admin',
       items: [
         { href: '/inventory', label: 'All Assets', icon: '📦', roles: [ROLE_CODES.ADMIN] },
-        { href: '/admin/assets', label: 'Manage Assets', icon: '⚙️', roles: [ROLE_CODES.ADMIN] },
         { href: '/admin/users', label: 'Users', icon: '👥', roles: [ROLE_CODES.ADMIN] },
         { href: '/admin/requests', label: 'Requests', icon: '✅', roles: [ROLE_CODES.ADMIN] },
         { href: '/purchase', label: 'Invoices', icon: '🧾', roles: [ROLE_CODES.ADMIN] },
         { href: '/purchase/add', label: 'Add Invoice', icon: '➕', roles: [ROLE_CODES.ADMIN] },
         { href: '/admin/asset-types', label: 'Asset Types', icon: '🏷️', roles: [ROLE_CODES.ADMIN] },
+        { href: '/admin/models', label: 'Models', icon: '📱', roles: [ROLE_CODES.ADMIN] },
         { href: '/admin/locations', label: 'Locations', icon: '📍', roles: [ROLE_CODES.ADMIN] },
         { href: '/admin/vendors', label: 'Vendors', icon: '🏢', roles: [ROLE_CODES.ADMIN] },
       ],

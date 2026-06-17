@@ -37,11 +37,13 @@ export default function InventoryPage() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [assetTypes, setAssetTypes] = useState<string[]>([])
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [showAllocateModal, setShowAllocateModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
   const [selectedUserId, setSelectedUserId] = useState('')
   const [allocating, setAllocating] = useState(false)
@@ -164,11 +166,24 @@ export default function InventoryPage() {
     }
   }
 
+  const handleEditClick = () => {
+    if (selectedAsset) {
+      router.push(`/admin/assets?edit=${selectedAsset.id}`)
+      setShowEditModal(false)
+    }
+  }
+
   if (!user) return null
 
   const filteredAssets = assets.filter((asset) => {
+    const matchesSearch =
+      asset.tag.toLowerCase().includes(search.toLowerCase()) ||
+      asset.serialNum.toLowerCase().includes(search.toLowerCase()) ||
+      (asset.name?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+      (asset.holder?.name.toLowerCase().includes(search.toLowerCase()) ?? false)
     if (statusFilter && asset.status !== statusFilter) return false
     if (typeFilter && asset.type !== typeFilter) return false
+    if (search && !matchesSearch) return false
     return true
   })
 
@@ -184,16 +199,42 @@ export default function InventoryPage() {
   return (
     <LayoutWrapper user={user} pageTitle="Inventory">
       <ContentContainer>
-        <div className="mb-8">
-          <p className="text-sm text-gray-600 mb-6">View and manage all IT assets</p>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">All Assets</h1>
+            <p className="text-gray-600">View and manage all IT assets</p>
+          </div>
+          {user?.role.includes('ADMIN') && (
+            <button
+              onClick={() => router.push('/admin/assets')}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition font-medium"
+            >
+              + Add Asset
+            </button>
+          )}
+        </div>
 
-          <div className="flex gap-4 mb-6 flex-wrap">
+        {/* Search and Filters */}
+        <div className="mb-8">
+          <div className="flex gap-4 mb-6 flex-wrap items-end">
+            <div className="flex-1 min-w-64">
+              <label className="block text-xs font-semibold text-gray-600 mb-2">Search</label>
+              <input
+                type="text"
+                placeholder="Search by tag, serial, model, or holder..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+              />
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-2">Status</label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-200 rounded-lg text-sm"
+                className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
               >
                 <option value="">All Statuses</option>
                 {statuses.map((s) => (
@@ -209,7 +250,7 @@ export default function InventoryPage() {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-200 rounded-lg text-sm"
+                className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
               >
                 <option value="">All Types</option>
                 {assetTypes.map((t) => (
@@ -220,15 +261,16 @@ export default function InventoryPage() {
               </select>
             </div>
 
-            {(statusFilter || typeFilter) && (
+            {(statusFilter || typeFilter || search) && (
               <button
                 onClick={() => {
                   setStatusFilter('')
                   setTypeFilter('')
+                  setSearch('')
                 }}
-                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition mt-6"
+                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
               >
-                Clear Filters
+                Clear All
               </button>
             )}
           </div>
@@ -302,6 +344,17 @@ export default function InventoryPage() {
                           )}
                         </td>
                         <td className="px-6 py-4 flex gap-2">
+                          {user?.role.includes('ADMIN') && (
+                            <button
+                              onClick={() => {
+                                setSelectedAsset(asset)
+                                setShowEditModal(true)
+                              }}
+                              className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 transition"
+                            >
+                              Edit
+                            </button>
+                          )}
                           {asset.status === 'Available' && (
                             <button
                               onClick={() => handleAllocateClick(asset)}
@@ -428,6 +481,42 @@ export default function InventoryPage() {
                 className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition disabled:bg-gray-400"
               >
                 {returning ? 'Returning...' : 'Return to Inventory'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Asset Modal */}
+      {showEditModal && selectedAsset && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Edit Asset</h2>
+              <p className="text-sm text-gray-600 mt-1">{selectedAsset.tag}</p>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-700">
+                Click the button below to edit this asset's details.
+              </p>
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowEditModal(false)
+                  setSelectedAsset(null)
+                }}
+                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditClick}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+              >
+                Edit Asset
               </button>
             </div>
           </div>

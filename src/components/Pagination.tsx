@@ -57,7 +57,8 @@ export default function Pagination({
     }
   }
 
-  if (totalPages <= 1) return null
+  if (totalPages < 1 || totalItems === 0) return null
+  if (currentPage > totalPages) return null
 
   return (
     <div className="flex flex-col gap-4 items-center justify-between py-6 px-4 border-t border-gray-200 bg-gray-50 md:flex-row">
