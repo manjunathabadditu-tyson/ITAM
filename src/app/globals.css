@@ -494,14 +494,14 @@ html, body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
   z-index: 50;
   animation: fadeIn 0.2s ease-out;
-  backdrop-filter: blur(1px);
+  backdrop-filter: blur(2px);
 }
 
 .modal-content {

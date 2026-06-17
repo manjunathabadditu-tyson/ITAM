@@ -39,7 +39,7 @@ export default function ModelsPage() {
   const [formData, setFormData] = useState({
     name: '',
     assetTypeId: '',
-    manufacturer: '',
+    vendorId: '',
   })
 
   useEffect(() => {
@@ -91,6 +91,10 @@ export default function ModelsPage() {
     setMessage(null)
 
     try {
+      const vendorName = formData.vendorId
+        ? vendors.find((v) => v.id === formData.vendorId)?.name
+        : undefined
+
       const res = await fetch('/api/asset-names', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -98,7 +102,7 @@ export default function ModelsPage() {
         body: JSON.stringify({
           name: formData.name,
           assetTypeId: formData.assetTypeId,
-          manufacturer: formData.manufacturer || undefined,
+          manufacturer: vendorName || undefined,
         }),
       })
 
@@ -110,7 +114,7 @@ export default function ModelsPage() {
       const newModel = await res.json()
       setModels([...models, newModel])
       setMessage({ type: 'success', text: 'Model created successfully' })
-      setFormData({ name: '', assetTypeId: '', manufacturer: '' })
+      setFormData({ name: '', assetTypeId: '', vendorId: '' })
       setShowAddModal(false)
       setTimeout(() => setMessage(null), 3000)
     } catch (error: any) {
@@ -137,7 +141,7 @@ export default function ModelsPage() {
             </div>
             <button
               onClick={() => {
-                setFormData({ name: '', assetTypeId: '', manufacturer: '' })
+                setFormData({ name: '', assetTypeId: '', vendorId: '' })
                 setShowAddModal(true)
               }}
               className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition font-medium"
@@ -214,7 +218,7 @@ export default function ModelsPage() {
           title="Add New Model"
           onClose={() => {
             setShowAddModal(false)
-            setFormData({ name: '', assetTypeId: '', manufacturer: '' })
+            setFormData({ name: '', assetTypeId: '', vendorId: '' })
             setMessage(null)
           }}
           actions={[
@@ -222,7 +226,7 @@ export default function ModelsPage() {
               label: 'Cancel',
               onClick: () => {
                 setShowAddModal(false)
-                setFormData({ name: '', assetTypeId: '', manufacturer: '' })
+                setFormData({ name: '', assetTypeId: '', vendorId: '' })
                 setMessage(null)
               },
             },
@@ -265,14 +269,19 @@ export default function ModelsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-2">Manufacturer (Optional)</label>
-              <input
-                type="text"
-                value={formData.manufacturer}
-                onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
+              <label className="block text-sm font-semibold text-gray-900 mb-2">Vendor (Optional)</label>
+              <select
+                value={formData.vendorId}
+                onChange={(e) => setFormData({ ...formData, vendorId: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-primary"
-                placeholder="e.g., Dell Inc."
-              />
+              >
+                <option value="">-- No Vendor --</option>
+                {vendors.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </form>
         </Modal>

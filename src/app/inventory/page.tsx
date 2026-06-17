@@ -6,6 +6,7 @@ import LayoutWrapper from '@/components/LayoutWrapper'
 import ContentContainer from '@/components/ContentContainer'
 import EmptyState from '@/components/EmptyState'
 import { SkeletonTable } from '@/components/SkeletonLoader'
+import AssetFormModal, { AssetFormData } from '@/components/AssetFormModal'
 import { AuthUser } from '@/types/auth'
 
 interface Asset {
@@ -43,12 +44,14 @@ export default function InventoryPage() {
   const [assetTypes, setAssetTypes] = useState<string[]>([])
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [showAllocateModal, setShowAllocateModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
+  const [showAddAssetModal, setShowAddAssetModal] = useState(false)
+  const [showEditAssetModal, setShowEditAssetModal] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
   const [selectedUserId, setSelectedUserId] = useState('')
   const [allocating, setAllocating] = useState(false)
   const [showReturnModal, setShowReturnModal] = useState(false)
   const [returning, setReturning] = useState(false)
+  const [assetFormSubmitting, setAssetFormSubmitting] = useState(false)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -166,10 +169,74 @@ export default function InventoryPage() {
     }
   }
 
-  const handleEditClick = () => {
-    if (selectedAsset) {
-      router.push(`/admin/assets?edit=${selectedAsset.id}`)
-      setShowEditModal(false)
+  const handleAddAsset = async (formData: AssetFormData) => {
+    setAssetFormSubmitting(true)
+    try {
+      const res = await fetch('/api/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          assetTag: formData.assetTag,
+          typeId: formData.typeId,
+          assetNameId: formData.assetNameId || undefined,
+          serialNum: formData.serialNum,
+          status: formData.status,
+          purchaseCost: formData.purchaseCost ? parseFloat(formData.purchaseCost) : null,
+          warrantyEnd: formData.warrantyEnd || null,
+        }),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to create asset')
+      }
+
+      const newAsset = await res.json()
+      setAssets([...assets, newAsset])
+      setShowAddAssetModal(false)
+      alert('Asset created successfully')
+    } catch (error: any) {
+      alert(error.message || 'Failed to create asset')
+    } finally {
+      setAssetFormSubmitting(false)
+    }
+  }
+
+  const handleEditAsset = async (formData: AssetFormData) => {
+    if (!selectedAsset) return
+
+    setAssetFormSubmitting(true)
+    try {
+      const res = await fetch(`/api/assets/${selectedAsset.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          assetTag: formData.assetTag,
+          typeId: formData.typeId,
+          assetNameId: formData.assetNameId || undefined,
+          serialNum: formData.serialNum,
+          status: formData.status,
+          purchaseCost: formData.purchaseCost ? parseFloat(formData.purchaseCost) : null,
+          warrantyEnd: formData.warrantyEnd || null,
+        }),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to update asset')
+      }
+
+      const updatedAsset = await res.json()
+      setAssets(assets.map((a) => (a.id === selectedAsset.id ? updatedAsset : a)))
+      setShowEditAssetModal(false)
+      setSelectedAsset(null)
+      alert('Asset updated successfully')
+    } catch (error: any) {
+      alert(error.message || 'Failed to update asset')
+    } finally {
+      setAssetFormSubmitting(false)
     }
   }
 
@@ -207,7 +274,7 @@ export default function InventoryPage() {
           </div>
           {user?.role.includes('ADMIN') && (
             <button
-              onClick={() => router.push('/admin/assets')}
+              onClick={() => setShowAddAssetModal(true)}
               className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition font-medium"
             >
               + Add Asset
@@ -348,7 +415,7 @@ export default function InventoryPage() {
                             <button
                               onClick={() => {
                                 setSelectedAsset(asset)
-                                setShowEditModal(true)
+                                setShowEditAssetModal(true)
                               }}
                               className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 transition"
                             >
@@ -487,40 +554,34 @@ export default function InventoryPage() {
         </div>
       )}
 
+      {/* Add Asset Modal */}
+      <AssetFormModal
+        isOpen={showAddAssetModal}
+        onClose={() => setShowAddAssetModal(false)}
+        onSubmit={handleAddAsset}
+        submitting={assetFormSubmitting}
+      />
+
       {/* Edit Asset Modal */}
-      {showEditModal && selectedAsset && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Edit Asset</h2>
-              <p className="text-sm text-gray-600 mt-1">{selectedAsset.tag}</p>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-700">
-                Click the button below to edit this asset's details.
-              </p>
-            </div>
-
-            <div className="p-6 border-t border-gray-200 flex gap-3">
-              <button
-                onClick={() => {
-                  setShowEditModal(false)
-                  setSelectedAsset(null)
-                }}
-                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleEditClick}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-              >
-                Edit Asset
-              </button>
-            </div>
-          </div>
-        </div>
+      {selectedAsset && (
+        <AssetFormModal
+          isOpen={showEditAssetModal}
+          onClose={() => {
+            setShowEditAssetModal(false)
+            setSelectedAsset(null)
+          }}
+          onSubmit={handleEditAsset}
+          initialData={{
+            assetTag: selectedAsset.tag,
+            typeId: selectedAsset.type,
+            serialNum: selectedAsset.serialNum,
+            status: selectedAsset.status,
+            purchaseCost: selectedAsset.purchaseCost?.toString() || '',
+            warrantyEnd: selectedAsset.warrantyEnd || '',
+          }}
+          isEditing={true}
+          submitting={assetFormSubmitting}
+        />
       )}
     </LayoutWrapper>
   )
